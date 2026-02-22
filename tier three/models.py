@@ -11,6 +11,10 @@ class SoilDataDB(Base):
     temp = Column(Float, nullable=False)
     humidity = Column(Float, nullable=False)
     ph = Column(Float, nullable=True) # Added pH column, nullable for backwards compatibility
+    nitrogen = Column(Float, nullable=True)     # Added for DSS (mg/kg)
+    phosphorus = Column(Float, nullable=True)   # Added for DSS (mg/kg)
+    potassium = Column(Float, nullable=True)    # Added for DSS (mg/kg)
+    rainfall = Column(Float, nullable=True)     # Added for DSS (mm)
     timestamp = Column(String, nullable=False) # Storing as ISO string for simplicity out of ESP32
 
 class FarmerDB(Base):

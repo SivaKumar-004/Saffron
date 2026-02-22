@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 import database
 import models
 import os
@@ -10,6 +10,10 @@ import random
 from datetime import datetime, timedelta
 import google.generativeai as genai
 from dotenv import load_dotenv
+
+from services.crop_prediction import predict_crop_suitability
+from services.fertilizer_optimizer import calculate_fertilizer_deficit
+from services.reasoning_engine import generate_decision
 
 load_dotenv()
 
@@ -50,7 +54,11 @@ class SoilData(BaseModel):
     moisture: float
     temp: float
     humidity: float
-    ph: float = 7.0 # Default to neutral if previous ESP32 firmware connects
+    ph: Optional[float] = 7.0 # Default to neutral if previous ESP32 firmware connects
+    nitrogen: Optional[float] = 0.0     # Default for backward compatibility
+    phosphorus: Optional[float] = 0.0   # Default for backward compatibility
+    potassium: Optional[float] = 0.0    # Default for backward compatibility
+    rainfall: Optional[float] = 0.0     # Default for backward compatibility
     timestamp: str
     
 class SoilDataResponse(SoilData):
@@ -89,31 +97,54 @@ async def predict_crop(farmer_id: int, db: Session = Depends(get_db)):
     if not latest:
         return {"prediction": "Waiting for sensor data..."}
     
-    if not gemini_model:
-        return {"prediction": "API Key Missing. Cannot predict..."}
+    predictions = predict_crop_suitability(
+        nitrogen=latest.nitrogen,
+        phosphorus=latest.phosphorus,
+        potassium=latest.potassium,
+        ph=latest.ph,
+        temp=latest.temp,
+        humidity=latest.humidity,
+        rainfall=latest.rainfall
+    )
     
-    try:
-        prompt = f"I am a farmer. My soil moisture is {latest.moisture}%, temp is {latest.temp}°C, humidity is {latest.humidity}%, and soil pH is {latest.ph}. Name the top 2 crops I should plant. Keep your response extremely short, under 10 words."
-        response = gemini_model.generate_content(prompt)
-        return {"prediction": response.text.strip()}
-    except Exception as e:
-        return {"prediction": f"AI Error: {str(e)}"}
+    if not predictions:
+        return {"prediction": "No suitable crops found."}
+        
+    return {"prediction": f"Top match: {predictions[0]['crop']} ({predictions[0]['suitability_score']}%)"}
 
 @app.get("/api/fertilizer")
-async def recommend_fertilizer(farmer_id: int, db: Session = Depends(get_db)):
+async def recommend_fertilizer(farmer_id: int, crop_name: str = "Tomato", db: Session = Depends(get_db)):
     latest = db.query(models.SoilDataDB).filter(models.SoilDataDB.farmer_id == farmer_id).order_by(models.SoilDataDB.id.desc()).first()
     if not latest:
         return {"recommendation": "Waiting for sensor data..."}
         
-    if not gemini_model:
-        return {"recommendation": "API Key Missing. Cannot recommend..."}
+    fert_data = calculate_fertilizer_deficit(
+        crop_name=crop_name,
+        current_n=latest.nitrogen,
+        current_p=latest.phosphorus,
+        current_k=latest.potassium
+    )
     
-    try:
-        prompt = f"Based on my soil telemetry ({latest.moisture}% moisture, {latest.temp}°C, {latest.humidity}% env humidity, and {latest.ph} pH), what is the best fertilizer action right now? Keep the response to a single, concise sentence."
-        response = gemini_model.generate_content(prompt)
-        return {"recommendation": response.text.strip()}
-    except Exception as e:
-        return {"recommendation": f"AI Error: {str(e)}"}
+    if "error" in fert_data:
+        return {"recommendation": fert_data["error"]}
+        
+    return {"recommendation": fert_data["recommendation"]}
+
+@app.get("/api/dss-insight")
+async def get_dss_insight(farmer_id: int, region: str = "Central", current_month: int = datetime.utcnow().month, db: Session = Depends(get_db)):
+    latest = db.query(models.SoilDataDB).filter(models.SoilDataDB.farmer_id == farmer_id).order_by(models.SoilDataDB.id.desc()).first()
+    
+    if not latest:
+        raise HTTPException(status_code=404, detail="No sensor data available to generate insights.")
+        
+    insight = generate_decision(
+        farmer_soil_data=latest,
+        region=region,
+        current_month=current_month,
+        gemini_model=gemini_model
+    )
+    
+    return insight
 
 @app.get("/api/disaster-alerts")
 async def get_disaster_alerts(farmer_id: int, db: Session = Depends(get_db)):
@@ -145,13 +176,17 @@ async def register_farmer(farmer: FarmerRegistration, db: Session = Depends(get_
         # Go back in time: 1 hour apart for each reading
         past_time = now - timedelta(hours=(15 - i))
         
-        # Generate realistic random variations
+        # Generate realistic random variations, casting round() to float for pyre typings
         soil = models.SoilDataDB(
             farmer_id=db_farmer.id,
-            moisture=round(random.uniform(35.0, 55.0), 1),
-            temp=round(random.uniform(22.0, 28.0), 1),
-            humidity=round(random.uniform(45.0, 65.0), 1),
-            ph=round(random.uniform(6.2, 7.1), 1),
+            moisture=float(round(random.uniform(35.0, 55.0), 1)),
+            temp=float(round(random.uniform(22.0, 28.0), 1)),
+            humidity=float(round(random.uniform(45.0, 65.0), 1)),
+            ph=float(round(random.uniform(6.2, 7.1), 1)),
+            nitrogen=float(round(random.uniform(80.0, 140.0), 1)),    # Mock N (mg/kg)
+            phosphorus=float(round(random.uniform(30.0, 70.0), 1)),   # Mock P (mg/kg)
+            potassium=float(round(random.uniform(40.0, 100.0), 1)),   # Mock K (mg/kg)
+            rainfall=float(round(random.uniform(0.0, 15.0), 1)),      # Mock rain (mm)
             timestamp=past_time.isoformat() + "Z" # Append Z for UTC conformity
         )
         seed_records.append(soil)

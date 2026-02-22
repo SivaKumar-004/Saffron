@@ -22,6 +22,11 @@ export const getDisasterAlerts = async (farmerId) => {
     return response.data;
 };
 
+export const getDssInsight = async (farmerId) => {
+    const response = await axios.get(`${API_BASE}/dss-insight?farmer_id=${farmerId}`);
+    return response.data;
+};
+
 export const registerFarmer = async (farmerData) => {
     const response = await axios.post(`${API_BASE}/farmer-register`, farmerData);
     return response.data;

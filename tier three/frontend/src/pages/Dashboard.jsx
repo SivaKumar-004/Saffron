@@ -1,15 +1,13 @@
 import { useEffect, useState } from 'react';
-import { getSoilData, getPredictCrop, getFertilizer, getDisasterAlerts } from '../api';
-import { Droplets, Thermometer, CloudRain, Activity, AlertTriangle, LineChart as ChartIcon } from 'lucide-react';
+import { getSoilData, getDisasterAlerts, getDssInsight } from '../api';
+import { Droplets, Thermometer, CloudRain, Activity, AlertTriangle, LineChart as ChartIcon, Leaf, Beaker, Zap, CloudDrizzle, BrainCircuit, MapPin } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 function Dashboard({ farmerId, farmerName }) {
     const [soilData, setSoilData] = useState([]);
-    const [prediction, setPrediction] = useState('');
-    const [fertilizer, setFertilizer] = useState('');
+    const [dssInsight, setDssInsight] = useState(null);
     const [alerts, setAlerts] = useState([]);
-    const [isPredictingCrop, setIsPredictingCrop] = useState(false);
-    const [isGettingFertilizer, setIsGettingFertilizer] = useState(false);
+    const [isGettingInsight, setIsGettingInsight] = useState(false);
 
     const fetchTelemetry = async () => {
         if (!farmerId) return;
@@ -23,44 +21,33 @@ function Dashboard({ farmerId, farmerName }) {
         }
     };
 
-    const generateCropPrediction = async () => {
+    const generateInsight = async () => {
         if (!farmerId) return;
-        setIsPredictingCrop(true);
+        setIsGettingInsight(true);
         try {
-            const crop = await getPredictCrop(farmerId);
-            setPrediction(crop.prediction);
+            const data = await getDssInsight(farmerId);
+            setDssInsight(data);
         } catch (err) {
-            setPrediction("Failed to generate prediction.");
+            setDssInsight({ explanation: "Failed to load Decision Support Insight.", crop_scores: [], recommended_crop: 'N/A', fertilizer_plan: 'Error loading plan' });
         } finally {
-            setIsPredictingCrop(false);
-        }
-    };
-
-    const generateFertilizerPlan = async () => {
-        if (!farmerId) return;
-        setIsGettingFertilizer(true);
-        try {
-            const fert = await getFertilizer(farmerId);
-            setFertilizer(fert.recommendation);
-        } catch (err) {
-            setFertilizer("Failed to load recommendation.");
-        } finally {
-            setIsGettingFertilizer(false);
+            setIsGettingInsight(false);
         }
     };
 
     useEffect(() => {
         fetchTelemetry(); // Initial poll
-        // Poll telemetry strictly every 8 hours (28,800,000 milliseconds)
         const interval = setInterval(fetchTelemetry, 28800000);
         return () => clearInterval(interval);
     }, []);
 
-    const latestData = soilData.length > 0 ? soilData[soilData.length - 1] : { moisture: 0, temp: 0, humidity: 0 };
+    const latestData = soilData.length > 0 ? soilData[soilData.length - 1] : { moisture: 0, temp: 0, humidity: 0, ph: 0, nitrogen: 0, phosphorus: 0, potassium: 0, rainfall: 0 };
 
     return (
         <>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="live-badge" style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)', color: 'var(--text-secondary)' }}>
+                    <MapPin size={14} style={{ marginRight: '0.25rem' }} /> Sensor Coverage: ~50m²
+                </div>
                 <div className="live-badge">
                     <div className="pulse"></div>
                     Background Sync: 8hrs
@@ -109,10 +96,65 @@ function Dashboard({ farmerId, farmerName }) {
                     </div>
                     <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>DHT22 Sensor Reading</p>
                 </div>
+
+                <div className="glass-card telemetry-card">
+                    <h3 style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>Nitrogen (N)</h3>
+                    <div className="icon-wrapper icon-green">
+                        <Leaf size={28} />
+                    </div>
+                    <div className="telemetry-value">
+                        {latestData.nitrogen.toFixed(1)}<span className="telemetry-unit">mg/kg</span>
+                    </div>
+                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>DSS Extrapolated Telemetry</p>
+                </div>
+
+                <div className="glass-card telemetry-card">
+                    <h3 style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>Phosphorus (P)</h3>
+                    <div className="icon-wrapper icon-orange">
+                        <Beaker size={28} />
+                    </div>
+                    <div className="telemetry-value">
+                        {latestData.phosphorus.toFixed(1)}<span className="telemetry-unit">mg/kg</span>
+                    </div>
+                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>DSS Extrapolated Telemetry</p>
+                </div>
+
+                <div className="glass-card telemetry-card">
+                    <h3 style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>Potassium (K)</h3>
+                    <div className="icon-wrapper icon-blue">
+                        <Zap size={28} />
+                    </div>
+                    <div className="telemetry-value">
+                        {latestData.potassium.toFixed(1)}<span className="telemetry-unit">mg/kg</span>
+                    </div>
+                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>DSS Extrapolated Telemetry</p>
+                </div>
+
+                <div className="glass-card telemetry-card">
+                    <h3 style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>Soil pH</h3>
+                    <div className="icon-wrapper" style={{ background: 'rgba(156, 39, 176, 0.2)', color: '#ce93d8' }}>
+                        <Activity size={28} />
+                    </div>
+                    <div className="telemetry-value">
+                        {latestData.ph.toFixed(1)}<span className="telemetry-unit"></span>
+                    </div>
+                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>Ideal range: 6.0 - 7.5</p>
+                </div>
+
+                <div className="glass-card telemetry-card">
+                    <h3 style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>Rainfall</h3>
+                    <div className="icon-wrapper icon-blue">
+                        <CloudDrizzle size={28} />
+                    </div>
+                    <div className="telemetry-value">
+                        {latestData.rainfall.toFixed(1)}<span className="telemetry-unit">mm</span>
+                    </div>
+                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>Past 24h Accumulation</p>
+                </div>
             </div>
 
             {/* Historical Data Chart */}
-            <div className="glass-card" style={{ marginBottom: '1.5rem' }}>
+            <div className="glass-card" style={{ marginBottom: '1.5rem', marginTop: '1.5rem' }}>
                 <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
                     <ChartIcon color="var(--accent-blue)" /> Historical Telemetry Trends
                 </h2>
@@ -152,41 +194,72 @@ function Dashboard({ farmerId, farmerName }) {
             </div>
 
             <div className="dashboard-grid">
-                <div className="glass-card" style={{ gridColumn: 'span 2' }}>
+                <div className="glass-card" style={{ gridColumn: '1 / -1' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                         <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-                            <Activity color="var(--accent-blue)" /> Generative AI Insights
+                            <BrainCircuit color="var(--accent-blue)" /> Intelligent Decision Support System
                         </h2>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                        <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '12px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                                <h4 style={{ color: 'var(--text-secondary)', margin: 0 }}>Optimal Crop Model</h4>
-                                <button onClick={generateCropPrediction} disabled={isPredictingCrop || soilData.length === 0} className="btn" style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
-                                    {isPredictingCrop ? 'Thinking...' : 'Generate Prediction'}
-                                </button>
+                    <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                <h4 style={{ color: 'var(--text-secondary)', margin: 0 }}>Comprehensive Analysis</h4>
+                                {dssInsight?.region && (
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.85rem', background: 'rgba(255,255,255,0.1)', padding: '0.25rem 0.75rem', borderRadius: '12px', color: 'var(--text-secondary)' }}>
+                                        <MapPin size={14} /> Valid for Region: <strong>{dssInsight.region}</strong>
+                                    </span>
+                                )}
                             </div>
-                            <p style={{ fontSize: '1.25rem', fontWeight: 600, minHeight: '3rem' }}>
-                                {prediction || 'Standby for manual AI generation...'}
-                            </p>
+                            <button onClick={generateInsight} disabled={isGettingInsight || soilData.length === 0} className="btn" style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
+                                {isGettingInsight ? 'Analyzing Telemetry & Market Data...' : 'Generate DSS Insight'}
+                            </button>
                         </div>
 
-                        <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '12px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                                <h4 style={{ color: 'var(--text-secondary)', margin: 0 }}>Fertilizer Plan</h4>
-                                <button onClick={generateFertilizerPlan} disabled={isGettingFertilizer || soilData.length === 0} className="btn" style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
-                                    {isGettingFertilizer ? 'Thinking...' : 'Generate Plan'}
-                                </button>
+                        {dssInsight ? (
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                                <div>
+                                    <h5 style={{ color: 'var(--accent-green)', marginBottom: '0.5rem', fontSize: '1.2rem' }}>
+                                        🏆 Recommended Action: Plant {dssInsight.recommended_crop}
+                                    </h5>
+                                    <p style={{ fontSize: '1.05rem', lineHeight: 1.6, color: 'var(--text-primary)', marginTop: '1rem' }}>
+                                        <strong>Reasoning Summary:</strong><br />
+                                        {dssInsight.explanation}
+                                    </p>
+                                    <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(255,165,0,0.1)', borderRadius: '8px', borderLeft: '4px solid var(--accent-orange)' }}>
+                                        <h6 style={{ color: 'var(--accent-orange)', marginBottom: '0.75rem', fontSize: '1.05rem' }}>Precise Fertilizer Plan:</h6>
+                                        <p style={{ margin: 0, lineHeight: 1.5 }}>{dssInsight.fertilizer_plan}</p>
+                                    </div>
+                                </div>
+                                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '8px' }}>
+                                    <h5 style={{ color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '1.1rem' }}>Crop Suitability Scores</h5>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                        {dssInsight.crop_scores && dssInsight.crop_scores.map((crop, idx) => (
+                                            <div key={idx} style={{ background: 'rgba(255,255,255,0.05)', padding: '1rem', borderRadius: '8px' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                                    <strong style={{ fontSize: '1.1rem' }}>{crop.crop}</strong>
+                                                    <span style={{ fontWeight: 'bold', color: crop.suitability_score > 80 ? 'var(--accent-green)' : crop.suitability_score > 60 ? 'var(--accent-orange)' : 'var(--accent-blue)' }}>
+                                                        {crop.suitability_score}% Match
+                                                    </span>
+                                                </div>
+                                                <div style={{ width: '100%', background: 'rgba(255,255,255,0.1)', borderRadius: '6px', height: '8px', overflow: 'hidden', marginBottom: '0.75rem' }}>
+                                                    <div style={{ width: `${crop.suitability_score}%`, background: crop.suitability_score > 80 ? 'var(--accent-green)' : crop.suitability_score > 60 ? 'var(--accent-orange)' : '#f44336', height: '100%', borderRadius: '6px', transition: 'width 1s ease-in-out' }}></div>
+                                                </div>
+                                                <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5, borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '0.5rem' }}>
+                                                    <strong>Cultivation Plan:</strong> {crop.cultivation_solution || 'Data syncing...'}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
-                            <p style={{ fontSize: '1.1rem', lineHeight: 1.4, minHeight: '3rem' }}>
-                                {fertilizer || 'Standby for manual AI generation...'}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="hardware-panel" style={{ marginTop: '1.5rem' }}>
-                        <strong>Hardware Calibration Note:</strong> Ensure the capacitive soil moisture sensor is properly calibrated in the ESP32 logic: <code>dry = 0%</code> (air) and <code>water = 100%</code>. Analog reads must be mapped appropriately before POSTing to <code>/api/soil-data</code>.
+                        ) : (
+                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '8rem' }}>
+                                <p style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-secondary)', textAlign: 'center' }}>
+                                    Standby for manual AI generation...
+                                </p>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
