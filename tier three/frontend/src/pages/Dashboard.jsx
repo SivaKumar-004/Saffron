@@ -51,7 +51,7 @@ function Dashboard({ farmerId, farmerName }) {
         <>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginBottom: '1rem' }}>
                 <div className="live-badge" style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)', color: 'var(--text-secondary)' }}>
-                    <MapPin size={14} style={{ marginRight: '0.25rem' }} /> Sensor Coverage: ~50m²
+                    <MapPin size={14} style={{ marginRight: '0.25rem' }} /> Sensor Coverage: ~1km²
                 </div>
                 <div className="live-badge">
                     <div className="pulse"></div>
@@ -76,7 +76,7 @@ function Dashboard({ farmerId, farmerName }) {
                         <Droplets size={28} />
                     </div>
                     <div className="telemetry-value">
-                        {latestData.moisture.toFixed(1)}<span className="telemetry-unit">%</span>
+                        {(latestData.moisture || 0).toFixed(1)}<span className="telemetry-unit">%</span>
                     </div>
                     <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>ESP32 Calibrated Range: 30-60%</p>
                 </div>
@@ -87,7 +87,7 @@ function Dashboard({ farmerId, farmerName }) {
                         <Thermometer size={28} />
                     </div>
                     <div className="telemetry-value" style={{ fontSize: "1.5rem" }}>
-                        {latestData.temp.toFixed(1)}°C <span style={{ color: "var(--text-secondary)", fontSize: "1rem" }}>|</span> {latestData.humidity.toFixed(1)}%
+                        {(latestData.temp || 0).toFixed(1)}°C <span style={{ color: "var(--text-secondary)", fontSize: "1rem" }}>|</span> {(latestData.humidity || 0).toFixed(1)}%
                     </div>
                     <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>BME280 Environment Sensor</p>
                 </div>
@@ -120,7 +120,7 @@ function Dashboard({ farmerId, farmerName }) {
                         <Target size={28} />
                     </div>
                     <div className="telemetry-value">
-                        {latestData.ph.toFixed(1)}<span className="telemetry-unit"></span>
+                        {(latestData.ph || 0).toFixed(1)}<span className="telemetry-unit"></span>
                     </div>
                     <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>Ideal range: 6.0 - 7.5</p>
                 </div>
@@ -144,7 +144,7 @@ function Dashboard({ farmerId, farmerName }) {
                     <div className="telemetry-value" style={{ fontSize: "1.5rem" }}>
                         {(latestData.air_pressure || 0).toFixed(0)}<span className="telemetry-unit">hPa</span>
                     </div>
-                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>{latestData.rainfall.toFixed(1)}mm Rain (Past 24h)</p>
+                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>{(latestData.rainfall || 0).toFixed(1)}mm Rain (Past 24h)</p>
                 </div>
 
                 <div className="glass-card telemetry-card">
@@ -165,7 +165,7 @@ function Dashboard({ farmerId, farmerName }) {
                         </div>
                         <div>
                             <h4 style={{ margin: 0, color: 'var(--text-secondary)' }}>Nitrogen (N)</h4>
-                            <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{latestData.nitrogen.toFixed(1)} <small>mg/kg</small></span>
+                            <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{(latestData.nitrogen || 0).toFixed(1)} <small>mg/kg</small></span>
                         </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -174,7 +174,7 @@ function Dashboard({ farmerId, farmerName }) {
                         </div>
                         <div>
                             <h4 style={{ margin: 0, color: 'var(--text-secondary)' }}>Phosphorus (P)</h4>
-                            <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{latestData.phosphorus.toFixed(1)} <small>mg/kg</small></span>
+                            <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{(latestData.phosphorus || 0).toFixed(1)} <small>mg/kg</small></span>
                         </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -183,7 +183,7 @@ function Dashboard({ farmerId, farmerName }) {
                         </div>
                         <div>
                             <h4 style={{ margin: 0, color: 'var(--text-secondary)' }}>Potassium (K)</h4>
-                            <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{latestData.potassium.toFixed(1)} <small>mg/kg</small></span>
+                            <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{(latestData.potassium || 0).toFixed(1)} <small>mg/kg</small></span>
                         </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '2rem' }}>
@@ -254,8 +254,10 @@ function Dashboard({ farmerId, farmerName }) {
                                     </span>
                                 )}
                             </div>
-                            <button onClick={generateInsight} disabled={isGettingInsight || soilData.length === 0} className="btn" style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>
-                                {isGettingInsight ? 'Analyzing Telemetry & Market Data...' : 'Generate DSS Insight'}
+                            <button onClick={generateInsight} disabled={isGettingInsight || soilData.length === 0} className="btn btn-primary" style={{ padding: '0.875rem 1.5rem', fontSize: '1rem' }}>
+                                {isGettingInsight ? (
+                                    <><span className="spinner"></span> Synthesizing...</>
+                                ) : 'Generate DSS Insight'}
                             </button>
                         </div>
 
@@ -297,9 +299,11 @@ function Dashboard({ farmerId, farmerName }) {
                                 </div>
                             </div>
                         ) : (
-                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '8rem' }}>
-                                <p style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-secondary)', textAlign: 'center' }}>
-                                    Standby for manual AI generation...
+                            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '12rem', gap: '1rem', opacity: 0.6 }}>
+                                <BrainCircuit size={48} color="var(--text-secondary)" />
+                                <p style={{ fontSize: '1.25rem', fontWeight: 500, color: 'var(--text-secondary)', textAlign: 'center' }}>
+                                    Awaiting telemetry analysis.<br />
+                                    <span style={{ fontSize: '1rem', fontWeight: 400 }}>Click 'Generate DSS Insight' to synthesize current data.</span>
                                 </p>
                             </div>
                         )}
