@@ -1,0 +1,13 @@
+venv
+node_modules
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.venv
+.env
+agrisphere.db
+.git
+.github
+frontend/node_modules
+frontend/dist
