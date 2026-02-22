@@ -59,5 +59,11 @@ services:
     depends_on:
       - tier1-backend
 
+  tier3-frontend:
+    build: ../tier-3
+    container_name: tier3-frontend
+    ports:
+      - "3002:80"
+
 volumes:
   postgres_data:
