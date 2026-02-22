@@ -156,6 +156,47 @@ async def get_dss_insight(farmer_id: int, region: str = "Central", current_month
     
     return insight
 
+@app.get("/api/dss-custom-crop-insight")
+async def get_dss_custom_crop_insight(farmer_id: int, target_crop: str, db: Session = Depends(get_db)):
+    latest = db.query(models.SoilDataDB).filter(models.SoilDataDB.farmer_id == farmer_id).order_by(models.SoilDataDB.id.desc()).first()
+    
+    if not latest:
+        raise HTTPException(status_code=404, detail="No sensor data available to generate insights.")
+        
+    explanation = "Data synthesis complete. (No AI Model Provided)"
+    if gemini_model:
+        synthesis_prompt = f"""
+        Act as an Expert Agronomist providing custom precision agriculture advice. 
+        The farmer wants to know if their current soil and environment are optimal for **{target_crop}** (whether they are planning to plant it, or it is already growing).
+        
+        Here is the farmer's LIVE soil and environmental telemetry:
+        - Soil Nitrogen: {latest.nitrogen} mg/kg
+        - Soil Phosphorus: {latest.phosphorus} mg/kg
+        - Soil Potassium: {latest.potassium} mg/kg
+        - Soil pH: {latest.ph}
+        - Soil Moisture: {latest.moisture}%
+        - Soil Temp: {latest.soil_temp or latest.temp}°C
+        - Ambient Temp: {latest.temp}°C
+        - Ambient Humidity: {latest.humidity}%
+        - Light Intensity: {latest.light_intensity or 'Unknown'} Lux
+        
+        Analyze these exact metrics against the ideal growing conditions for {target_crop}. 
+        Provide a concise, 3-to-4 sentence response covering:
+        1. A clear assessment of whether the current conditions are healthy for {target_crop}.
+        2. The primary limiting factor(s) or stressors in their current soil/environment.
+        3. A specific, actionable fertilizer, water, or cultivation modification plan to optimize the yield for {target_crop}.
+        """
+        
+        try:
+            explanation = gemini_model.generate_content(synthesis_prompt).text.strip()
+        except Exception as e:
+            explanation = f"AI Error evaluating custom crop decision: {str(e)}"
+            
+    return {
+        "target_crop": target_crop,
+        "explanation": explanation
+    }
+
 @app.get("/api/disaster-alerts")
 async def get_disaster_alerts(farmer_id: int, db: Session = Depends(get_db)):
     latest = db.query(models.SoilDataDB).filter(models.SoilDataDB.farmer_id == farmer_id).order_by(models.SoilDataDB.id.desc()).first()

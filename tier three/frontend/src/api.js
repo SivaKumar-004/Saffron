@@ -27,6 +27,11 @@ export const getDssInsight = async (farmerId) => {
     return response.data;
 };
 
+export const getDssCustomCropInsight = async (farmerId, targetCrop) => {
+    const response = await axios.get(`${API_BASE}/dss-custom-crop-insight?farmer_id=${farmerId}&target_crop=${targetCrop}`);
+    return response.data;
+};
+
 export const registerFarmer = async (farmerData) => {
     const response = await axios.post(`${API_BASE}/farmer-register`, farmerData);
     return response.data;

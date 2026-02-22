@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getSoilData, getDisasterAlerts, getDssInsight } from '../api';
+import { getSoilData, getDisasterAlerts, getDssInsight, getDssCustomCropInsight } from '../api';
 import { Droplets, Thermometer, CloudRain, Activity, AlertTriangle, LineChart as ChartIcon, Leaf, Beaker, Zap, CloudDrizzle, BrainCircuit, MapPin, Sun, Wind, Waves, Battery, Target } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -8,6 +8,12 @@ function Dashboard({ farmerId, farmerName }) {
     const [dssInsight, setDssInsight] = useState(null);
     const [alerts, setAlerts] = useState([]);
     const [isGettingInsight, setIsGettingInsight] = useState(false);
+
+    // Custom Crop Inquiry State
+    const [dssTab, setDssTab] = useState('recommendations'); // 'recommendations' or 'custom'
+    const [customCropInput, setCustomCropInput] = useState('');
+    const [customInsight, setCustomInsight] = useState(null);
+    const [isGettingCustom, setIsGettingCustom] = useState(false);
 
     const fetchTelemetry = async () => {
         if (!farmerId) return;
@@ -31,6 +37,19 @@ function Dashboard({ farmerId, farmerName }) {
             setDssInsight({ explanation: "Failed to load Decision Support Insight.", crop_scores: [], recommended_crop: 'N/A', fertilizer_plan: 'Error loading plan' });
         } finally {
             setIsGettingInsight(false);
+        }
+    };
+
+    const generateCustomInsight = async () => {
+        if (!farmerId || !customCropInput.trim()) return;
+        setIsGettingCustom(true);
+        try {
+            const data = await getDssCustomCropInsight(farmerId, customCropInput.trim());
+            setCustomInsight(data);
+        } catch (err) {
+            setCustomInsight({ explanation: "Failed to load custom insight analysis.", target_crop: customCropInput });
+        } finally {
+            setIsGettingCustom(false);
         }
     };
 
@@ -238,76 +257,128 @@ function Dashboard({ farmerId, farmerName }) {
 
             <div className="dashboard-grid">
                 <div className="glass-card" style={{ gridColumn: '1 / -1' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
                         <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
                             <BrainCircuit color="var(--accent-blue)" /> Intelligent Decision Support System
                         </h2>
-                    </div>
-
-                    <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '12px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                <h4 style={{ color: 'var(--text-secondary)', margin: 0 }}>Comprehensive Analysis</h4>
-                                {dssInsight?.region && (
-                                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.85rem', background: 'rgba(255,255,255,0.1)', padding: '0.25rem 0.75rem', borderRadius: '12px', color: 'var(--text-secondary)' }}>
-                                        <MapPin size={14} /> Valid for Region: <strong>{dssInsight.region}</strong>
-                                    </span>
-                                )}
-                            </div>
-                            <button onClick={generateInsight} disabled={isGettingInsight || soilData.length === 0} className="btn btn-primary" style={{ padding: '0.875rem 1.5rem', fontSize: '1rem' }}>
-                                {isGettingInsight ? (
-                                    <><span className="spinner"></span> Synthesizing...</>
-                                ) : 'Generate DSS Insight'}
-                            </button>
+                        <div style={{ display: 'flex', gap: '0.5rem', background: 'rgba(255,255,255,0.05)', padding: '0.25rem', borderRadius: '8px' }}>
+                            <button
+                                className={`btn ${dssTab === 'recommendations' ? 'btn-primary' : ''}`}
+                                style={{ padding: '0.5rem 1rem', background: dssTab === 'recommendations' ? '' : 'transparent', color: 'white' }}
+                                onClick={() => setDssTab('recommendations')}
+                            >AI Recommendations</button>
+                            <button
+                                className={`btn ${dssTab === 'custom' ? 'btn-primary' : ''}`}
+                                style={{ padding: '0.5rem 1rem', background: dssTab === 'custom' ? '' : 'transparent', color: 'white' }}
+                                onClick={() => setDssTab('custom')}
+                            >Analyze Specific Crop</button>
                         </div>
-
-                        {dssInsight ? (
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-                                <div>
-                                    <h5 style={{ color: 'var(--accent-green)', marginBottom: '0.5rem', fontSize: '1.2rem' }}>
-                                        🏆 Recommended Action: Plant {dssInsight.recommended_crop}
-                                    </h5>
-                                    <p style={{ fontSize: '1.05rem', lineHeight: 1.6, color: 'var(--text-primary)', marginTop: '1rem' }}>
-                                        <strong>Reasoning Summary:</strong><br />
-                                        {dssInsight.explanation}
-                                    </p>
-                                    <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(255,165,0,0.1)', borderRadius: '8px', borderLeft: '4px solid var(--accent-orange)' }}>
-                                        <h6 style={{ color: 'var(--accent-orange)', marginBottom: '0.75rem', fontSize: '1.05rem' }}>Precise Fertilizer Plan:</h6>
-                                        <p style={{ margin: 0, lineHeight: 1.5 }}>{dssInsight.fertilizer_plan}</p>
-                                    </div>
-                                </div>
-                                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '8px' }}>
-                                    <h5 style={{ color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '1.1rem' }}>Crop Suitability Scores</h5>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                        {dssInsight.crop_scores && dssInsight.crop_scores.map((crop, idx) => (
-                                            <div key={idx} style={{ background: 'rgba(255,255,255,0.05)', padding: '1rem', borderRadius: '8px' }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                                                    <strong style={{ fontSize: '1.1rem' }}>{crop.crop}</strong>
-                                                    <span style={{ fontWeight: 'bold', color: crop.suitability_score > 80 ? 'var(--accent-green)' : crop.suitability_score > 60 ? 'var(--accent-orange)' : 'var(--accent-blue)' }}>
-                                                        {crop.suitability_score}% Match
-                                                    </span>
-                                                </div>
-                                                <div style={{ width: '100%', background: 'rgba(255,255,255,0.1)', borderRadius: '6px', height: '8px', overflow: 'hidden', marginBottom: '0.75rem' }}>
-                                                    <div style={{ width: `${crop.suitability_score}%`, background: crop.suitability_score > 80 ? 'var(--accent-green)' : crop.suitability_score > 60 ? 'var(--accent-orange)' : '#f44336', height: '100%', borderRadius: '6px', transition: 'width 1s ease-in-out' }}></div>
-                                                </div>
-                                                <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5, borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '0.5rem' }}>
-                                                    <strong>Cultivation Plan:</strong> {crop.cultivation_solution || 'Data syncing...'}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '12rem', gap: '1rem', opacity: 0.6 }}>
-                                <BrainCircuit size={48} color="var(--text-secondary)" />
-                                <p style={{ fontSize: '1.25rem', fontWeight: 500, color: 'var(--text-secondary)', textAlign: 'center' }}>
-                                    Awaiting telemetry analysis.<br />
-                                    <span style={{ fontSize: '1rem', fontWeight: 400 }}>Click 'Generate DSS Insight' to synthesize current data.</span>
-                                </p>
-                            </div>
-                        )}
                     </div>
+
+                    {dssTab === 'recommendations' && (
+                        <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '12px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                    <h4 style={{ color: 'var(--text-secondary)', margin: 0 }}>Comprehensive Analysis</h4>
+                                    {dssInsight?.region && (
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.85rem', background: 'rgba(255,255,255,0.1)', padding: '0.25rem 0.75rem', borderRadius: '12px', color: 'var(--text-secondary)' }}>
+                                            <MapPin size={14} /> Valid for Region: <strong>{dssInsight.region}</strong>
+                                        </span>
+                                    )}
+                                </div>
+                                <button onClick={generateInsight} disabled={isGettingInsight || soilData.length === 0} className="btn btn-primary" style={{ padding: '0.875rem 1.5rem', fontSize: '1rem' }}>
+                                    {isGettingInsight ? (
+                                        <><span className="spinner"></span> Synthesizing...</>
+                                    ) : 'Generate DSS Insight'}
+                                </button>
+                            </div>
+
+                            {dssInsight ? (
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                                    <div>
+                                        <h5 style={{ color: 'var(--accent-green)', marginBottom: '0.5rem', fontSize: '1.2rem' }}>
+                                            🏆 Recommended Action: Plant {dssInsight.recommended_crop}
+                                        </h5>
+                                        <p style={{ fontSize: '1.05rem', lineHeight: 1.6, color: 'var(--text-primary)', marginTop: '1rem' }}>
+                                            <strong>Reasoning Summary:</strong><br />
+                                            {dssInsight.explanation}
+                                        </p>
+                                        <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(255,165,0,0.1)', borderRadius: '8px', borderLeft: '4px solid var(--accent-orange)' }}>
+                                            <h6 style={{ color: 'var(--accent-orange)', marginBottom: '0.75rem', fontSize: '1.05rem' }}>Precise Fertilizer Plan:</h6>
+                                            <p style={{ margin: 0, lineHeight: 1.5 }}>{dssInsight.fertilizer_plan}</p>
+                                        </div>
+                                    </div>
+                                    <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '8px' }}>
+                                        <h5 style={{ color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '1.1rem' }}>Crop Suitability Scores</h5>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                            {dssInsight.crop_scores && dssInsight.crop_scores.map((crop, idx) => (
+                                                <div key={idx} style={{ background: 'rgba(255,255,255,0.05)', padding: '1rem', borderRadius: '8px' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                                        <strong style={{ fontSize: '1.1rem' }}>{crop.crop}</strong>
+                                                        <span style={{ fontWeight: 'bold', color: crop.suitability_score > 80 ? 'var(--accent-green)' : crop.suitability_score > 60 ? 'var(--accent-orange)' : 'var(--accent-blue)' }}>
+                                                            {crop.suitability_score}% Match
+                                                        </span>
+                                                    </div>
+                                                    <div style={{ width: '100%', background: 'rgba(255,255,255,0.1)', borderRadius: '6px', height: '8px', overflow: 'hidden', marginBottom: '0.75rem' }}>
+                                                        <div style={{ width: `${crop.suitability_score}%`, background: crop.suitability_score > 80 ? 'var(--accent-green)' : crop.suitability_score > 60 ? 'var(--accent-orange)' : '#f44336', height: '100%', borderRadius: '6px', transition: 'width 1s ease-in-out' }}></div>
+                                                    </div>
+                                                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5, borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '0.5rem' }}>
+                                                        <strong>Cultivation Plan:</strong> {crop.cultivation_solution || 'Data syncing...'}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '12rem', gap: '1rem', opacity: 0.6 }}>
+                                    <BrainCircuit size={48} color="var(--text-secondary)" />
+                                    <p style={{ fontSize: '1.25rem', fontWeight: 500, color: 'var(--text-secondary)', textAlign: 'center' }}>
+                                        Awaiting telemetry analysis.<br />
+                                        <span style={{ fontSize: '1rem', fontWeight: 400 }}>Click 'Generate DSS Insight' to synthesize current data.</span>
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {dssTab === 'custom' && (
+                        <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                                <input
+                                    type="text"
+                                    className="form-input"
+                                    style={{ flex: 1, minWidth: '250px', padding: '0.875rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.3)', color: 'white', fontSize: '1rem' }}
+                                    placeholder="Enter a crop you plan to grow or have already planted (e.g., Strawberries, Corn)..."
+                                    value={customCropInput}
+                                    onChange={(e) => setCustomCropInput(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && generateCustomInsight()}
+                                />
+                                <button onClick={generateCustomInsight} disabled={isGettingCustom || !customCropInput.trim() || soilData.length === 0} className="btn btn-primary" style={{ padding: '0.875rem 1.5rem', fontSize: '1rem', whiteSpace: 'nowrap' }}>
+                                    {isGettingCustom ? <><span className="spinner"></span> Analyzing...</> : 'Analyze Crop Status'}
+                                </button>
+                            </div>
+
+                            {customInsight ? (
+                                <div style={{ background: 'rgba(255,255,255,0.05)', padding: '1.5rem', borderRadius: '8px', borderLeft: '4px solid var(--accent-blue)' }}>
+                                    <h5 style={{ color: 'var(--accent-blue)', marginBottom: '1rem', fontSize: '1.2rem' }}>
+                                        🎯 Assessment for: {customInsight.target_crop}
+                                    </h5>
+                                    <p style={{ fontSize: '1.1rem', lineHeight: 1.6, color: 'var(--text-primary)', whiteSpace: 'pre-line', margin: 0 }}>
+                                        {customInsight.explanation}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '12rem', gap: '1rem', opacity: 0.6 }}>
+                                    <Target size={48} color="var(--text-secondary)" />
+                                    <p style={{ fontSize: '1.25rem', fontWeight: 500, color: 'var(--text-secondary)', textAlign: 'center', maxWidth: '600px' }}>
+                                        Curious about a specific plant or want to check on an already planted crop? <br />
+                                        <span style={{ fontSize: '1rem', fontWeight: 400 }}>Type the name above, and our AI Agronomist will analyze your live soil telemetry to give you an immediate health assessment.</span>
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
         </>
