@@ -1,0 +1,388 @@
+import { useEffect, useState } from 'react';
+import { getSoilData, getDisasterAlerts, getDssInsight, getDssCustomCropInsight } from '../api';
+import { Droplets, Thermometer, CloudRain, Activity, AlertTriangle, LineChart as ChartIcon, Leaf, Beaker, Zap, CloudDrizzle, BrainCircuit, MapPin, Sun, Wind, Waves, Battery, Target } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
+function Dashboard({ farmerId, farmerName }) {
+    const [soilData, setSoilData] = useState([]);
+    const [dssInsight, setDssInsight] = useState(null);
+    const [alerts, setAlerts] = useState([]);
+    const [isGettingInsight, setIsGettingInsight] = useState(false);
+
+    // Custom Crop Inquiry State
+    const [dssTab, setDssTab] = useState('recommendations'); // 'recommendations' or 'custom'
+    const [customCropInput, setCustomCropInput] = useState('');
+    const [customInsight, setCustomInsight] = useState(null);
+    const [isGettingCustom, setIsGettingCustom] = useState(false);
+
+    const fetchTelemetry = async () => {
+        if (!farmerId) return;
+        try {
+            const data = await getSoilData(farmerId);
+            setSoilData(data);
+            const alts = await getDisasterAlerts(farmerId);
+            setAlerts(alts.alerts);
+        } catch (err) {
+            console.error("Error fetching telemetry.", err);
+        }
+    };
+
+    const generateInsight = async () => {
+        if (!farmerId) return;
+        setIsGettingInsight(true);
+        try {
+            const data = await getDssInsight(farmerId);
+            setDssInsight(data);
+        } catch (err) {
+            setDssInsight({ explanation: "Failed to load Decision Support Insight.", crop_scores: [], recommended_crop: 'N/A', fertilizer_plan: 'Error loading plan' });
+        } finally {
+            setIsGettingInsight(false);
+        }
+    };
+
+    const generateCustomInsight = async () => {
+        if (!farmerId || !customCropInput.trim()) return;
+        setIsGettingCustom(true);
+        try {
+            const data = await getDssCustomCropInsight(farmerId, customCropInput.trim());
+            setCustomInsight(data);
+        } catch (err) {
+            setCustomInsight({ explanation: "Failed to load custom insight analysis.", target_crop: customCropInput });
+        } finally {
+            setIsGettingCustom(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchTelemetry(); // Initial poll
+        const interval = setInterval(fetchTelemetry, 28800000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const latestData = soilData.length > 0 ? soilData[soilData.length - 1] : {
+        moisture: 0, temp: 0, humidity: 0, ph: 0,
+        nitrogen: 0, phosphorus: 0, potassium: 0, rainfall: 0,
+        soil_temp: 0, soil_ec: 0, air_pressure: 0,
+        light_intensity: 0, water_level: 0, flow_rate: 0, battery_voltage: 0
+    };
+
+    return (
+        <>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="live-badge" style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)', color: 'var(--text-secondary)' }}>
+                    <MapPin size={14} style={{ marginRight: '0.25rem' }} /> Sensor Coverage: ~1km²
+                </div>
+                <div className="live-badge">
+                    <div className="pulse"></div>
+                    Background Sync: 8hrs
+                </div>
+            </div>
+
+            {alerts && alerts.length > 0 && alerts.map((alert, idx) => (
+                <div key={idx} className="alert-banner" style={{ marginBottom: '1.5rem' }}>
+                    <AlertTriangle className="alert-icon" size={24} />
+                    <div>
+                        <strong>{alert.type} Alert ({alert.severity}):</strong> {alert.message}
+                    </div>
+                </div>
+            ))}
+
+            <div className="dashboard-grid">
+
+                <div className="glass-card telemetry-card">
+                    <h3 style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>Soil Moisture</h3>
+                    <div className="icon-wrapper icon-blue">
+                        <Droplets size={28} />
+                    </div>
+                    <div className="telemetry-value">
+                        {(latestData.moisture || 0).toFixed(1)}<span className="telemetry-unit">%</span>
+                    </div>
+                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>ESP32 Calibrated Range: 30-60%</p>
+                </div>
+
+                <div className="glass-card telemetry-card">
+                    <h3 style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>Air Temp & Humidity</h3>
+                    <div className="icon-wrapper icon-orange">
+                        <Thermometer size={28} />
+                    </div>
+                    <div className="telemetry-value" style={{ fontSize: "1.5rem" }}>
+                        {(latestData.temp || 0).toFixed(1)}°C <span style={{ color: "var(--text-secondary)", fontSize: "1rem" }}>|</span> {(latestData.humidity || 0).toFixed(1)}%
+                    </div>
+                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>BME280 Environment Sensor</p>
+                </div>
+
+                <div className="glass-card telemetry-card">
+                    <h3 style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>Soil Temperature</h3>
+                    <div className="icon-wrapper icon-orange">
+                        <Thermometer size={28} />
+                    </div>
+                    <div className="telemetry-value">
+                        {(latestData.soil_temp || 0).toFixed(1)}<span className="telemetry-unit">°C</span>
+                    </div>
+                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>DS18B20 Subsurface Probe</p>
+                </div>
+
+                <div className="glass-card telemetry-card">
+                    <h3 style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>Soil EC (Conductivity)</h3>
+                    <div className="icon-wrapper" style={{ background: 'rgba(255, 193, 7, 0.2)', color: '#ffc107' }}>
+                        <Activity size={28} />
+                    </div>
+                    <div className="telemetry-value">
+                        {(latestData.soil_ec || 0).toFixed(2)}<span className="telemetry-unit">ms/cm</span>
+                    </div>
+                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>Nutrient/Salinity Indication</p>
+                </div>
+
+                <div className="glass-card telemetry-card">
+                    <h3 style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>Soil pH</h3>
+                    <div className="icon-wrapper" style={{ background: 'rgba(156, 39, 176, 0.2)', color: '#ce93d8' }}>
+                        <Target size={28} />
+                    </div>
+                    <div className="telemetry-value">
+                        {(latestData.ph || 0).toFixed(1)}<span className="telemetry-unit"></span>
+                    </div>
+                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>Ideal range: 6.0 - 7.5</p>
+                </div>
+
+                <div className="glass-card telemetry-card">
+                    <h3 style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>Light Intensity</h3>
+                    <div className="icon-wrapper" style={{ background: 'rgba(255, 235, 59, 0.2)', color: '#ffeb3b' }}>
+                        <Sun size={28} />
+                    </div>
+                    <div className="telemetry-value" style={{ fontSize: "1.8rem" }}>
+                        {(latestData.light_intensity || 0).toFixed(0)}<span className="telemetry-unit">Lux</span>
+                    </div>
+                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>BH1750 Sensor Module</p>
+                </div>
+
+                <div className="glass-card telemetry-card">
+                    <h3 style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>Air Pressure & Rain</h3>
+                    <div className="icon-wrapper icon-blue">
+                        <Wind size={28} />
+                    </div>
+                    <div className="telemetry-value" style={{ fontSize: "1.5rem" }}>
+                        {(latestData.air_pressure || 0).toFixed(0)}<span className="telemetry-unit">hPa</span>
+                    </div>
+                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>{(latestData.rainfall || 0).toFixed(1)}mm Rain (Past 24h)</p>
+                </div>
+
+                <div className="glass-card telemetry-card">
+                    <h3 style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>Irrigation System</h3>
+                    <div className="icon-wrapper icon-blue">
+                        <Waves size={28} />
+                    </div>
+                    <div className="telemetry-value" style={{ fontSize: "1.5rem" }}>
+                        {(latestData.water_level || 0).toFixed(1)}% <span style={{ color: "var(--text-secondary)", fontSize: "1rem" }}>Tank</span>
+                    </div>
+                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>Flow: {(latestData.flow_rate || 0).toFixed(2)} L/min</p>
+                </div>
+
+                <div className="glass-card telemetry-card" style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 2rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <div className="icon-wrapper icon-green" style={{ width: '40px', height: '40px' }}>
+                            <Leaf size={20} />
+                        </div>
+                        <div>
+                            <h4 style={{ margin: 0, color: 'var(--text-secondary)' }}>Nitrogen (N)</h4>
+                            <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{(latestData.nitrogen || 0).toFixed(1)} <small>mg/kg</small></span>
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <div className="icon-wrapper icon-orange" style={{ width: '40px', height: '40px' }}>
+                            <Beaker size={20} />
+                        </div>
+                        <div>
+                            <h4 style={{ margin: 0, color: 'var(--text-secondary)' }}>Phosphorus (P)</h4>
+                            <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{(latestData.phosphorus || 0).toFixed(1)} <small>mg/kg</small></span>
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <div className="icon-wrapper icon-blue" style={{ width: '40px', height: '40px' }}>
+                            <Zap size={20} />
+                        </div>
+                        <div>
+                            <h4 style={{ margin: 0, color: 'var(--text-secondary)' }}>Potassium (K)</h4>
+                            <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{(latestData.potassium || 0).toFixed(1)} <small>mg/kg</small></span>
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '2rem' }}>
+                        <Battery size={24} color={(latestData.battery_voltage || 0) > 3.6 ? "var(--accent-green)" : "var(--accent-orange)"} />
+                        <div>
+                            <h4 style={{ margin: 0, color: 'var(--text-secondary)' }}>Node Power (Li-ion 3.7V)</h4>
+                            <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{(latestData.battery_voltage || 0).toFixed(2)}V</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Historical Data Chart */}
+            <div className="glass-card" style={{ marginBottom: '1.5rem', marginTop: '1.5rem' }}>
+                <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                    <ChartIcon color="var(--accent-blue)" /> Historical Telemetry Trends
+                </h2>
+                <div className="chart-container">
+                    {soilData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={soilData.slice(-20)} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                                <XAxis
+                                    dataKey="timestamp"
+                                    stroke="var(--text-secondary)"
+                                    tickFormatter={(tick) => {
+                                        try { return new Date(tick).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }
+                                        catch (e) { return tick }
+                                    }}
+                                />
+                                <YAxis yAxisId="left" stroke="var(--text-secondary)" />
+                                <YAxis yAxisId="right" orientation="right" stroke="var(--text-secondary)" />
+                                <Tooltip
+                                    labelFormatter={(label) => {
+                                        try { return new Date(label).toLocaleString() }
+                                        catch (e) { return label }
+                                    }}
+                                />
+                                <Legend />
+                                <Line yAxisId="left" type="monotone" dataKey="moisture" stroke="var(--accent-blue)" strokeWidth={2} activeDot={{ r: 6 }} name="Moisture (%)" />
+                                <Line yAxisId="right" type="monotone" dataKey="temp" stroke="var(--accent-orange)" strokeWidth={2} name="Temperature (°C)" />
+                                <Line yAxisId="left" type="monotone" dataKey="humidity" stroke="var(--accent-green)" strokeWidth={2} name="Humidity (%)" />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
+                            Waiting for sensor data...
+                        </div>
+                    )}
+                </div>
+            </div >
+
+            <div className="dashboard-grid">
+                <div className="glass-card" style={{ gridColumn: '1 / -1' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+                        <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                            <BrainCircuit color="var(--accent-blue)" /> Intelligent Decision Support System
+                        </h2>
+                        <div style={{ display: 'flex', gap: '0.5rem', background: 'rgba(255,255,255,0.05)', padding: '0.25rem', borderRadius: '8px' }}>
+                            <button
+                                className={`btn ${dssTab === 'recommendations' ? 'btn-primary' : ''}`}
+                                style={{ padding: '0.5rem 1rem', background: dssTab === 'recommendations' ? '' : 'transparent', color: 'white' }}
+                                onClick={() => setDssTab('recommendations')}
+                            >AI Recommendations</button>
+                            <button
+                                className={`btn ${dssTab === 'custom' ? 'btn-primary' : ''}`}
+                                style={{ padding: '0.5rem 1rem', background: dssTab === 'custom' ? '' : 'transparent', color: 'white' }}
+                                onClick={() => setDssTab('custom')}
+                            >Analyze Specific Crop</button>
+                        </div>
+                    </div>
+
+                    {dssTab === 'recommendations' && (
+                        <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '12px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                    <h4 style={{ color: 'var(--text-secondary)', margin: 0 }}>Comprehensive Analysis</h4>
+                                    {dssInsight?.region && (
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.85rem', background: 'rgba(255,255,255,0.1)', padding: '0.25rem 0.75rem', borderRadius: '12px', color: 'var(--text-secondary)' }}>
+                                            <MapPin size={14} /> Valid for Region: <strong>{dssInsight.region}</strong>
+                                        </span>
+                                    )}
+                                </div>
+                                <button onClick={generateInsight} disabled={isGettingInsight || soilData.length === 0} className="btn btn-primary" style={{ padding: '0.875rem 1.5rem', fontSize: '1rem' }}>
+                                    {isGettingInsight ? (
+                                        <><span className="spinner"></span> Synthesizing...</>
+                                    ) : 'Generate DSS Insight'}
+                                </button>
+                            </div>
+
+                            {dssInsight ? (
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                                    <div>
+                                        <h5 style={{ color: 'var(--accent-green)', marginBottom: '0.5rem', fontSize: '1.2rem' }}>
+                                            🏆 Recommended Action: Plant {dssInsight.recommended_crop}
+                                        </h5>
+                                        <p style={{ fontSize: '1.05rem', lineHeight: 1.6, color: 'var(--text-primary)', marginTop: '1rem' }}>
+                                            <strong>Reasoning Summary:</strong><br />
+                                            {dssInsight.explanation}
+                                        </p>
+                                        <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(255,165,0,0.1)', borderRadius: '8px', borderLeft: '4px solid var(--accent-orange)' }}>
+                                            <h6 style={{ color: 'var(--accent-orange)', marginBottom: '0.75rem', fontSize: '1.05rem' }}>Precise Fertilizer Plan:</h6>
+                                            <p style={{ margin: 0, lineHeight: 1.5 }}>{dssInsight.fertilizer_plan}</p>
+                                        </div>
+                                    </div>
+                                    <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '8px' }}>
+                                        <h5 style={{ color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '1.1rem' }}>Crop Suitability Scores</h5>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                            {dssInsight.crop_scores && dssInsight.crop_scores.map((crop, idx) => (
+                                                <div key={idx} style={{ background: 'rgba(255,255,255,0.05)', padding: '1rem', borderRadius: '8px' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                                        <strong style={{ fontSize: '1.1rem' }}>{crop.crop}</strong>
+                                                        <span style={{ fontWeight: 'bold', color: crop.suitability_score > 80 ? 'var(--accent-green)' : crop.suitability_score > 60 ? 'var(--accent-orange)' : 'var(--accent-blue)' }}>
+                                                            {crop.suitability_score}% Match
+                                                        </span>
+                                                    </div>
+                                                    <div style={{ width: '100%', background: 'rgba(255,255,255,0.1)', borderRadius: '6px', height: '8px', overflow: 'hidden', marginBottom: '0.75rem' }}>
+                                                        <div style={{ width: `${crop.suitability_score}%`, background: crop.suitability_score > 80 ? 'var(--accent-green)' : crop.suitability_score > 60 ? 'var(--accent-orange)' : '#f44336', height: '100%', borderRadius: '6px', transition: 'width 1s ease-in-out' }}></div>
+                                                    </div>
+                                                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5, borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '0.5rem' }}>
+                                                        <strong>Cultivation Plan:</strong> {crop.cultivation_solution || 'Data syncing...'}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '12rem', gap: '1rem', opacity: 0.6 }}>
+                                    <BrainCircuit size={48} color="var(--text-secondary)" />
+                                    <p style={{ fontSize: '1.25rem', fontWeight: 500, color: 'var(--text-secondary)', textAlign: 'center' }}>
+                                        Awaiting telemetry analysis.<br />
+                                        <span style={{ fontSize: '1rem', fontWeight: 400 }}>Click 'Generate DSS Insight' to synthesize current data.</span>
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {dssTab === 'custom' && (
+                        <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                                <input
+                                    type="text"
+                                    className="form-input"
+                                    style={{ flex: 1, minWidth: '250px', padding: '0.875rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.3)', color: 'white', fontSize: '1rem' }}
+                                    placeholder="Enter a crop you plan to grow or have already planted (e.g., Strawberries, Corn)..."
+                                    value={customCropInput}
+                                    onChange={(e) => setCustomCropInput(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && generateCustomInsight()}
+                                />
+                                <button onClick={generateCustomInsight} disabled={isGettingCustom || !customCropInput.trim() || soilData.length === 0} className="btn btn-primary" style={{ padding: '0.875rem 1.5rem', fontSize: '1rem', whiteSpace: 'nowrap' }}>
+                                    {isGettingCustom ? <><span className="spinner"></span> Analyzing...</> : 'Analyze Crop Status'}
+                                </button>
+                            </div>
+
+                            {customInsight ? (
+                                <div style={{ background: 'rgba(255,255,255,0.05)', padding: '1.5rem', borderRadius: '8px', borderLeft: '4px solid var(--accent-blue)' }}>
+                                    <h5 style={{ color: 'var(--accent-blue)', marginBottom: '1rem', fontSize: '1.2rem' }}>
+                                        🎯 Assessment for: {customInsight.target_crop}
+                                    </h5>
+                                    <p style={{ fontSize: '1.1rem', lineHeight: 1.6, color: 'var(--text-primary)', whiteSpace: 'pre-line', margin: 0 }}>
+                                        {customInsight.explanation}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '12rem', gap: '1rem', opacity: 0.6 }}>
+                                    <Target size={48} color="var(--text-secondary)" />
+                                    <p style={{ fontSize: '1.25rem', fontWeight: 500, color: 'var(--text-secondary)', textAlign: 'center', maxWidth: '600px' }}>
+                                        Curious about a specific plant or want to check on an already planted crop? <br />
+                                        <span style={{ fontSize: '1rem', fontWeight: 400 }}>Type the name above, and our AI Agronomist will analyze your live soil telemetry to give you an immediate health assessment.</span>
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </>
+    );
+}
+
+export default Dashboard;

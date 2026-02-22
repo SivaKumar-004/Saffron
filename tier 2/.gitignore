@@ -1,0 +1,55 @@
+# Operating System
+.DS_Store
+Thumbs.db
+*.swp
+
+# Environment Variables
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+/frontend/dist/
+
+# IDEs
+.idea/
+.vscode/
+
+# Database
+*.db
+*.sqlite3
+
+# Docker
+.dockerignore

@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: agrisphere-db
+    environment:
+      POSTGRES_USER: agrisphere_user
+      POSTGRES_PASSWORD: agrisphere_password
+      POSTGRES_DB: agrisphere_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U agrisphere_user -d agrisphere_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: .
+    container_name: agrisphere-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://agrisphere_user:agrisphere_password@db:5432/agrisphere_db
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    container_name: agrisphere-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+  landing:
+    build: ../agrisphere-landing
+    container_name: agrisphere-landing
+    ports:
+      - "3000:80"
+
+  tier1-backend:
+    build: ../tier-1-sms/backend
+    container_name: tier1-backend
+    ports:
+      - "4000:4000"
+
+  tier1-frontend:
+    build: ../tier-1-sms/frontend
+    container_name: tier1-frontend
+    ports:
+      - "3001:80"
+    depends_on:
+      - tier1-backend
+
+volumes:
+  postgres_data:
