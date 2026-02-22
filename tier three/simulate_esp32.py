@@ -32,6 +32,16 @@ def generate_telemetry(farmer_id, base_temp=25.0, base_hum=60.0):
         "phosphorus": float(round(phosphorus, 2)),
         "potassium": float(round(potassium, 2)),
         "rainfall": float(round(rainfall, 2)),
+        
+        # New Hardware Sensors
+        "soil_temp": float(round(temp - random.uniform(2.0, 5.0), 2)),    # DS18B20 (°C, usually cooler than air)
+        "soil_ec": float(round(random.uniform(1.2, 1.8), 2)),             # EC Sensor (ms/cm)
+        "air_pressure": float(round(random.uniform(1010.0, 1015.0), 2)),  # BME280 (hPa)
+        "light_intensity": float(round(random.uniform(40000.0, 60000.0), 0)), # BH1750 (lux)
+        "water_level": float(round(random.uniform(60.0, 95.0), 2)),       # Water Level Sensor (%)
+        "flow_rate": float(round(random.uniform(0.0, 2.5), 2)),           # Flow Rate Sensor (L/min)
+        "battery_voltage": float(round(random.uniform(3.8, 4.2), 2)),     # Battery Monitor (V)
+        
         "timestamp": datetime.utcnow().isoformat() + "Z"
     }
     return payload, moisture, temp, ph # Return individual values for printing

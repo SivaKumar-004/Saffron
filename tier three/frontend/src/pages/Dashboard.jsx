@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getSoilData, getDisasterAlerts, getDssInsight } from '../api';
-import { Droplets, Thermometer, CloudRain, Activity, AlertTriangle, LineChart as ChartIcon, Leaf, Beaker, Zap, CloudDrizzle, BrainCircuit, MapPin } from 'lucide-react';
+import { Droplets, Thermometer, CloudRain, Activity, AlertTriangle, LineChart as ChartIcon, Leaf, Beaker, Zap, CloudDrizzle, BrainCircuit, MapPin, Sun, Wind, Waves, Battery, Target } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 function Dashboard({ farmerId, farmerName }) {
@@ -40,7 +40,12 @@ function Dashboard({ farmerId, farmerName }) {
         return () => clearInterval(interval);
     }, []);
 
-    const latestData = soilData.length > 0 ? soilData[soilData.length - 1] : { moisture: 0, temp: 0, humidity: 0, ph: 0, nitrogen: 0, phosphorus: 0, potassium: 0, rainfall: 0 };
+    const latestData = soilData.length > 0 ? soilData[soilData.length - 1] : {
+        moisture: 0, temp: 0, humidity: 0, ph: 0,
+        nitrogen: 0, phosphorus: 0, potassium: 0, rainfall: 0,
+        soil_temp: 0, soil_ec: 0, air_pressure: 0,
+        light_intensity: 0, water_level: 0, flow_rate: 0, battery_voltage: 0
+    };
 
     return (
         <>
@@ -64,6 +69,7 @@ function Dashboard({ farmerId, farmerName }) {
             ))}
 
             <div className="dashboard-grid">
+
                 <div className="glass-card telemetry-card">
                     <h3 style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>Soil Moisture</h3>
                     <div className="icon-wrapper icon-blue">
@@ -72,68 +78,46 @@ function Dashboard({ farmerId, farmerName }) {
                     <div className="telemetry-value">
                         {latestData.moisture.toFixed(1)}<span className="telemetry-unit">%</span>
                     </div>
-                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>ESP32 Target Calibrated Target Range: 30-60%</p>
+                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>ESP32 Calibrated Range: 30-60%</p>
                 </div>
 
                 <div className="glass-card telemetry-card">
-                    <h3 style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>Temperature</h3>
+                    <h3 style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>Air Temp & Humidity</h3>
+                    <div className="icon-wrapper icon-orange">
+                        <Thermometer size={28} />
+                    </div>
+                    <div className="telemetry-value" style={{ fontSize: "1.5rem" }}>
+                        {latestData.temp.toFixed(1)}°C <span style={{ color: "var(--text-secondary)", fontSize: "1rem" }}>|</span> {latestData.humidity.toFixed(1)}%
+                    </div>
+                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>BME280 Environment Sensor</p>
+                </div>
+
+                <div className="glass-card telemetry-card">
+                    <h3 style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>Soil Temperature</h3>
                     <div className="icon-wrapper icon-orange">
                         <Thermometer size={28} />
                     </div>
                     <div className="telemetry-value">
-                        {latestData.temp.toFixed(1)}<span className="telemetry-unit">°C</span>
+                        {(latestData.soil_temp || 0).toFixed(1)}<span className="telemetry-unit">°C</span>
                     </div>
-                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>DHT22 Sensor Reading</p>
+                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>DS18B20 Subsurface Probe</p>
                 </div>
 
                 <div className="glass-card telemetry-card">
-                    <h3 style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>Environment Humidity</h3>
-                    <div className="icon-wrapper icon-green">
-                        <CloudRain size={28} />
+                    <h3 style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>Soil EC (Conductivity)</h3>
+                    <div className="icon-wrapper" style={{ background: 'rgba(255, 193, 7, 0.2)', color: '#ffc107' }}>
+                        <Activity size={28} />
                     </div>
                     <div className="telemetry-value">
-                        {latestData.humidity.toFixed(1)}<span className="telemetry-unit">%</span>
+                        {(latestData.soil_ec || 0).toFixed(2)}<span className="telemetry-unit">ms/cm</span>
                     </div>
-                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>DHT22 Sensor Reading</p>
-                </div>
-
-                <div className="glass-card telemetry-card">
-                    <h3 style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>Nitrogen (N)</h3>
-                    <div className="icon-wrapper icon-green">
-                        <Leaf size={28} />
-                    </div>
-                    <div className="telemetry-value">
-                        {latestData.nitrogen.toFixed(1)}<span className="telemetry-unit">mg/kg</span>
-                    </div>
-                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>DSS Extrapolated Telemetry</p>
-                </div>
-
-                <div className="glass-card telemetry-card">
-                    <h3 style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>Phosphorus (P)</h3>
-                    <div className="icon-wrapper icon-orange">
-                        <Beaker size={28} />
-                    </div>
-                    <div className="telemetry-value">
-                        {latestData.phosphorus.toFixed(1)}<span className="telemetry-unit">mg/kg</span>
-                    </div>
-                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>DSS Extrapolated Telemetry</p>
-                </div>
-
-                <div className="glass-card telemetry-card">
-                    <h3 style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>Potassium (K)</h3>
-                    <div className="icon-wrapper icon-blue">
-                        <Zap size={28} />
-                    </div>
-                    <div className="telemetry-value">
-                        {latestData.potassium.toFixed(1)}<span className="telemetry-unit">mg/kg</span>
-                    </div>
-                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>DSS Extrapolated Telemetry</p>
+                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>Nutrient/Salinity Indication</p>
                 </div>
 
                 <div className="glass-card telemetry-card">
                     <h3 style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>Soil pH</h3>
                     <div className="icon-wrapper" style={{ background: 'rgba(156, 39, 176, 0.2)', color: '#ce93d8' }}>
-                        <Activity size={28} />
+                        <Target size={28} />
                     </div>
                     <div className="telemetry-value">
                         {latestData.ph.toFixed(1)}<span className="telemetry-unit"></span>
@@ -142,14 +126,73 @@ function Dashboard({ farmerId, farmerName }) {
                 </div>
 
                 <div className="glass-card telemetry-card">
-                    <h3 style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>Rainfall</h3>
+                    <h3 style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>Light Intensity</h3>
+                    <div className="icon-wrapper" style={{ background: 'rgba(255, 235, 59, 0.2)', color: '#ffeb3b' }}>
+                        <Sun size={28} />
+                    </div>
+                    <div className="telemetry-value" style={{ fontSize: "1.8rem" }}>
+                        {(latestData.light_intensity || 0).toFixed(0)}<span className="telemetry-unit">Lux</span>
+                    </div>
+                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>BH1750 Sensor Module</p>
+                </div>
+
+                <div className="glass-card telemetry-card">
+                    <h3 style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>Air Pressure & Rain</h3>
                     <div className="icon-wrapper icon-blue">
-                        <CloudDrizzle size={28} />
+                        <Wind size={28} />
                     </div>
-                    <div className="telemetry-value">
-                        {latestData.rainfall.toFixed(1)}<span className="telemetry-unit">mm</span>
+                    <div className="telemetry-value" style={{ fontSize: "1.5rem" }}>
+                        {(latestData.air_pressure || 0).toFixed(0)}<span className="telemetry-unit">hPa</span>
                     </div>
-                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>Past 24h Accumulation</p>
+                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>{latestData.rainfall.toFixed(1)}mm Rain (Past 24h)</p>
+                </div>
+
+                <div className="glass-card telemetry-card">
+                    <h3 style={{ color: "var(--text-secondary)", marginBottom: "1rem" }}>Irrigation System</h3>
+                    <div className="icon-wrapper icon-blue">
+                        <Waves size={28} />
+                    </div>
+                    <div className="telemetry-value" style={{ fontSize: "1.5rem" }}>
+                        {(latestData.water_level || 0).toFixed(1)}% <span style={{ color: "var(--text-secondary)", fontSize: "1rem" }}>Tank</span>
+                    </div>
+                    <p style={{ marginTop: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>Flow: {(latestData.flow_rate || 0).toFixed(2)} L/min</p>
+                </div>
+
+                <div className="glass-card telemetry-card" style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 2rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <div className="icon-wrapper icon-green" style={{ width: '40px', height: '40px' }}>
+                            <Leaf size={20} />
+                        </div>
+                        <div>
+                            <h4 style={{ margin: 0, color: 'var(--text-secondary)' }}>Nitrogen (N)</h4>
+                            <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{latestData.nitrogen.toFixed(1)} <small>mg/kg</small></span>
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <div className="icon-wrapper icon-orange" style={{ width: '40px', height: '40px' }}>
+                            <Beaker size={20} />
+                        </div>
+                        <div>
+                            <h4 style={{ margin: 0, color: 'var(--text-secondary)' }}>Phosphorus (P)</h4>
+                            <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{latestData.phosphorus.toFixed(1)} <small>mg/kg</small></span>
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <div className="icon-wrapper icon-blue" style={{ width: '40px', height: '40px' }}>
+                            <Zap size={20} />
+                        </div>
+                        <div>
+                            <h4 style={{ margin: 0, color: 'var(--text-secondary)' }}>Potassium (K)</h4>
+                            <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{latestData.potassium.toFixed(1)} <small>mg/kg</small></span>
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '2rem' }}>
+                        <Battery size={24} color={(latestData.battery_voltage || 0) > 3.6 ? "var(--accent-green)" : "var(--accent-orange)"} />
+                        <div>
+                            <h4 style={{ margin: 0, color: 'var(--text-secondary)' }}>Node Power (Li-ion 3.7V)</h4>
+                            <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{(latestData.battery_voltage || 0).toFixed(2)}V</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -191,7 +234,7 @@ function Dashboard({ farmerId, farmerName }) {
                         </div>
                     )}
                 </div>
-            </div>
+            </div >
 
             <div className="dashboard-grid">
                 <div className="glass-card" style={{ gridColumn: '1 / -1' }}>

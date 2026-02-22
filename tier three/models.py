@@ -15,6 +15,16 @@ class SoilDataDB(Base):
     phosphorus = Column(Float, nullable=True)   # Added for DSS (mg/kg)
     potassium = Column(Float, nullable=True)    # Added for DSS (mg/kg)
     rainfall = Column(Float, nullable=True)     # Added for DSS (mm)
+    
+    # New Hardware Sensors
+    soil_temp = Column(Float, nullable=True)       # DS18B20 (°C)
+    soil_ec = Column(Float, nullable=True)         # EC Sensor (ms/cm)
+    air_pressure = Column(Float, nullable=True)    # BME280 (hPa)
+    light_intensity = Column(Float, nullable=True) # BH1750 (lux)
+    water_level = Column(Float, nullable=True)     # Water Level Sensor (%)
+    flow_rate = Column(Float, nullable=True)       # Flow Rate Sensor (L/min)
+    battery_voltage = Column(Float, nullable=True) # Battery Monitor (V)
+    
     timestamp = Column(String, nullable=False) # Storing as ISO string for simplicity out of ESP32
 
 class FarmerDB(Base):

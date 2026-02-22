@@ -59,6 +59,16 @@ class SoilData(BaseModel):
     phosphorus: Optional[float] = 0.0   # Default for backward compatibility
     potassium: Optional[float] = 0.0    # Default for backward compatibility
     rainfall: Optional[float] = 0.0     # Default for backward compatibility
+    
+    # New IoT Hardware Sensors
+    soil_temp: Optional[float] = None
+    soil_ec: Optional[float] = None
+    air_pressure: Optional[float] = None
+    light_intensity: Optional[float] = None
+    water_level: Optional[float] = None
+    flow_rate: Optional[float] = None
+    battery_voltage: Optional[float] = None
+
     timestamp: str
     
 class SoilDataResponse(SoilData):
@@ -187,6 +197,16 @@ async def register_farmer(farmer: FarmerRegistration, db: Session = Depends(get_
             phosphorus=float(round(random.uniform(30.0, 70.0), 1)),   # Mock P (mg/kg)
             potassium=float(round(random.uniform(40.0, 100.0), 1)),   # Mock K (mg/kg)
             rainfall=float(round(random.uniform(0.0, 15.0), 1)),      # Mock rain (mm)
+            
+            # New mock hardware sensors
+            soil_temp=float(round(random.uniform(20.0, 26.0), 1)),    # Soil Temp (°C)
+            soil_ec=float(round(random.uniform(1.2, 1.8), 2)),        # Soil EC (ms/cm)
+            air_pressure=float(round(random.uniform(1010.0, 1015.0), 1)), # Air Pressure (hPa)
+            light_intensity=float(round(random.uniform(40000.0, 60000.0), 0)), # Light (Lux)
+            water_level=float(round(random.uniform(60.0, 95.0), 1)),  # Tank Level (%)
+            flow_rate=float(round(random.uniform(0.0, 2.5), 2)),      # Water flow (L/min)
+            battery_voltage=float(round(random.uniform(3.8, 4.2), 2)),# Battery (V)
+            
             timestamp=past_time.isoformat() + "Z" # Append Z for UTC conformity
         )
         seed_records.append(soil)
