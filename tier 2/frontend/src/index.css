@@ -135,19 +135,44 @@ h6 {
 /* Grid Layouts */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.25rem;
 }
 
 .telemetry-card {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 1.5rem;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    "icon title"
+    "icon value"
+    "desc desc";
+  align-items: center;
+  gap: 0.15rem 1rem;
+  padding: 1.25rem;
+}
+
+.telemetry-card h3 {
+  grid-area: title;
+  margin: 0 !important;
+  font-size: 0.95rem;
+  color: var(--text-secondary) !important;
+}
+
+.telemetry-card .icon-wrapper {
+  grid-area: icon;
+  margin: 0 !important;
+  padding: 0.6rem;
+}
+
+.telemetry-card p {
+  grid-area: desc;
+  margin-top: 0.75rem !important;
+  font-size: 0.8rem !important;
 }
 
 .telemetry-value {
-  font-size: 3.5rem;
+  grid-area: value;
+  font-size: 1.6rem !important;
   font-weight: 700;
   font-family: 'Outfit', sans-serif;
   color: var(--text-primary);
@@ -158,17 +183,15 @@ h6 {
 }
 
 .telemetry-unit {
-  font-size: 1.25rem;
+  font-size: 0.9rem;
   color: var(--text-secondary);
   font-weight: 500;
   letter-spacing: normal;
 }
 
 .icon-wrapper {
-  padding: 0.75rem;
   border-radius: 12px;
   display: inline-flex;
-  margin-bottom: 0.5rem;
 }
 
 .icon-blue {
